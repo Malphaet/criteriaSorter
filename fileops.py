@@ -61,8 +61,10 @@ class FileHandler:
     def __init__(self, file_path):
         self.file_path = file_path
         self.file_name = os.path.basename(file_path)
-        self.name, self.extension = os.path.splitext(self.file_name)
+        self.name = self.file_name
+        self.base_name, self.extension = os.path.splitext(self.file_name)
         self.type = self.guess_file_type()
+        self.destination = None
 
     def get_file_path(self):
         return self.file_path
@@ -82,15 +84,54 @@ class FileHandler:
     def is_image(self):
         return self.guess_file_type() == 'image'
 
+    def is_picture(self):
+        return self.is_image()
+
     def is_video(self):
         return self.guess_file_type() == 'video'
 
     def is_music(self):
         return self.guess_file_type() == 'music'
 
+    def is_audio(self):
+        return self.is_music()
+
     def is_document(self):
         return self.guess_file_type() == 'document'
 
+    def fills_all_conditions(self, list_functions):
+        for function in list_functions:
+            if not self.__getattribute__(function)():
+                return False
+        return True
+
+    def sort(self, list_of_condition_dicts, default=None):
+        for condition in list_of_condition_dicts:
+            if self.fills_all_conditions(condition['conditions'].split('\n')[:-1]):
+                self.destination = condition['destination']
+                return self.destination
+        logging.debug('No destination found for file: ' + self.file_name)
+        self.destination = default
+        return default
+
+    def move(self, destination=None, dry_run=False):
+        if dry_run:
+            dry_run_message = ' > [dry] '
+        else:
+            dry_run_message = ''
+
+        if destination is None:
+            destination = self.destination.format(obj=self)
+        destination_dir = os.path.dirname(destination)
+        if not os.path.exists(destination_dir):
+            logging.debug(dry_run_message+'Creating directory: ' + destination_dir)
+            if not dry_run:
+                os.makedirs(destination_dir)
+
+        logging.debug(dry_run_message+'Moving file: ' + self.file_name + ' to: ' + destination)
+        if not dry_run:
+            os.rename(self.file_path, destination)
+        return self.file_path, destination
 
 class ArtistHandler(FileHandler):
     def __init__(self, file_path):

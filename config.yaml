@@ -17,6 +17,7 @@ operations:
       operation1
       operation2
       operation3
+      operation4
     operation1:
       conditions : |
         has_artist
@@ -30,3 +31,9 @@ operations:
       conditions : |
         is_audio
       destination : audios/{obj.name}
+    operation4:
+      conditions : |
+        is_document
+      destination : others/{obj.name}
+    default_destination:
+      destination : default/{obj.name}
