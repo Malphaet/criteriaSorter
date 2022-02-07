@@ -7,7 +7,7 @@ import os
 import time
 import rich
 from rich.logging import RichHandler
-from fileops import DirectoryHandler, FileHandler, ArtistHandler
+from criteriaSorter.modules.fileops import DirectoryHandler, FileHandler, ArtistHandler
 
 
 def action_sort(argsp):
@@ -191,6 +191,7 @@ def parse_args(argvp):
     args = parser.parse_args()
     return args
 
+
 def main(argvp):
     """
     Main function
@@ -205,6 +206,3 @@ def main(argvp):
     # Execute the action
     _LIST_ACTIONS[args.action](args)
 
-
-if __name__ == '__main__':
-    main(sys.argv)
