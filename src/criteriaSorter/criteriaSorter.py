@@ -124,9 +124,9 @@ def action_list(argsp):
             print(line)
 
 
-def action_help(argsp):
-    if argsp:
-        parser.parse_args(['-h'])  # This will print the help
+# def action_help(argsp):
+#     if argsp:
+#         parser.parse_args(['-h'])  # This will print the help
 
 
 def action_cancel(argsp):
@@ -143,13 +143,28 @@ def action_cancel(argsp):
 
 _LIST_ACTIONS = {
     "sort": action_sort,
-    "help": action_help,
+    # "help": action_help,
     "list": action_list,
     "cancel": action_cancel,
 }
 
-if __name__ == '__main__':
-    if len(sys.argv) == 1:
+
+def config_log(argsp):
+    # Set up logging
+    # _LOG_FORMAT = ' > [%(levelname)s:%(filename)s] - %(message)s'
+    _LOG_FORMAT = '%(message)s'
+    if argsp.verbose == 0:
+        logging.basicConfig(level=logging.ERROR, format=_LOG_FORMAT, handlers=[RichHandler()])
+    elif argsp.verbose == 1:
+        logging.basicConfig(level=logging.WARNING, format=_LOG_FORMAT, handlers=[RichHandler()])
+    elif argsp.verbose == 2:
+        logging.basicConfig(level=logging.INFO, format=_LOG_FORMAT, handlers=[RichHandler()])
+    else:
+        logging.basicConfig(level=logging.DEBUG, format=_LOG_FORMAT, handlers=[RichHandler()])
+
+
+def parse_args(argvp):
+    if len(argvp) == 1:
         sys.argv.append('--help')
 
     # Parse arguments
@@ -165,27 +180,31 @@ if __name__ == '__main__':
 
     subparsers = parser.add_subparsers(dest='action')
     parser_sort = subparsers.add_parser('sort', help='Sort files according to criteria')
-    parser_list = subparsers.add_parser('list', help='List criteria')
-    parser_help = subparsers.add_parser('help', help='Show help')
-    parser_cancel = subparsers.add_parser('cancel', help='Cancel')
+    subparsers.add_parser('list', help='List criteria')  # parser_list
+    # parser_help = subparsers.add_parser('help', help='Show help')
+    subparsers.add_parser('cancel', help='Cancel')  # parser_cancel
     parser_sort.add_argument('folder', help='The folder to sort.')
     parser_sort.add_argument("-o", '--output', help='The output folder.', default=".")
     parser_sort.add_argument('-c', '--operations', help='The specific batch of operations to draw from.', default='default_operations')
     parser_sort.add_argument('--dry-run', help='Dry run.', action='store_true')
 
     args = parser.parse_args()
+    return args
 
-    # Set up logging
-    # _LOG_FORMAT = ' > [%(levelname)s:%(filename)s] - %(message)s'
-    _LOG_FORMAT = '%(message)s'
-    if args.verbose == 0:
-        logging.basicConfig(level=logging.ERROR, format=_LOG_FORMAT, handlers=[RichHandler()])
-    elif args.verbose == 1:
-        logging.basicConfig(level=logging.WARNING, format=_LOG_FORMAT, handlers=[RichHandler()])
-    elif args.verbose == 2:
-        logging.basicConfig(level=logging.INFO, format=_LOG_FORMAT, handlers=[RichHandler()])
-    else:
-        logging.basicConfig(level=logging.DEBUG, format=_LOG_FORMAT, handlers=[RichHandler()])
+def main(argvp):
+    """
+    Main function
+    :return:
+    """
+    # Parse arguments
+    args = parse_args(argvp)
+
+    # Configure logging
+    config_log(args)
 
     # Execute the action
     _LIST_ACTIONS[args.action](args)
+
+
+if __name__ == '__main__':
+    main(sys.argv)
