@@ -22,7 +22,7 @@ operations:
       conditions : |
         has_artist
         is_image
-      destination : artists/{obj.artist}/{obj.name}
+      destination : Artists/{obj.artist}/{obj.name}
     operation2:
       conditions : |
         is_video
@@ -35,5 +35,3 @@ operations:
       conditions : |
         is_document
       destination : others/{obj.name}
-    default_destination:
-      destination : default/{obj.name}

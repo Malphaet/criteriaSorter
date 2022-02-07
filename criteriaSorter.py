@@ -10,10 +10,9 @@ from rich.logging import RichHandler
 from fileops import DirectoryHandler, FileHandler, ArtistHandler
 
 
-def action_sort(args):
-
+def action_sort(argsp):
     # Load the config file
-    with open(args.config, 'r') as stream:
+    with open(argsp.config, 'r') as stream:
         try:
             config = yaml.load(stream, Loader=yaml.FullLoader)
         except yaml.YAMLError as exc:
@@ -22,11 +21,11 @@ def action_sort(args):
 
     # Load the operations
     try:
-        if args.operations == "default_operations":
+        if argsp.operations == "default_operations":
             logging.info("Loading default operations")
             operations_name = config["general"]['default_operations']
         else:
-            operations_name = config[args.operation]
+            operations_name = config[argsp.operation]
         operations_config = config["operations"][operations_name]
     except Exception:
         logging.error("Could not load operations")
@@ -42,7 +41,7 @@ def action_sort(args):
         sys.exit(1)
 
     # Create the DirectorySorter
-    directory_handler = DirectoryHandler(args.folder)
+    directory_handler = DirectoryHandler(argsp.folder)
 
     # Get the list of Handler from the directory
     handler_list = []
@@ -64,17 +63,23 @@ def action_sort(args):
             logging.debug("[Operation list] Processing operation {}".format(operation))
             operation_list.append(operations_config[operation])
         except Exception as e:
-            logging.error("[Operation list] Could not load operation {} : {}".format(operation,e))
+            logging.error("[Operation list] Could not load operation {} : {}".format(operation, e))
             logging.debug(e, exc_info=True)
             # sys.exit(1)  # Unsure if this is the right thing to do
+
+    # Find the default destination
+    if "default_destination" in operations_config:
+        default_destination = operations_config["default_destination"]["destination"]
+    else:
+        default_destination = None
 
     # Sort the files
     for handler in handler_list:
         try:
             # rich.inspect(operation_list)
             logging.debug("[File sorting] Processing {}".format(handler.file_name))
-            destination = handler.sort(operation_list, default=operations_config["default_destination"]["destination"])
-            logging.info("[File sorting] {} -> {}".format(handler.file_name, destination.format(obj=handler)))
+            destination = handler.sort(operation_list, default=default_destination)
+            logging.debug("[File sorting] {} -> {}".format(handler.file_name, destination))
         except Exception as e:
             logging.error("[File sorting] Could not sort {}".format(handler.file_name))
             logging.error(e)
@@ -85,44 +90,47 @@ def action_sort(args):
     for handler in handler_list:
         try:
             logging.debug("[File moving] Processing {}".format(handler.file_name))
-            list_of_operations.append(handler.move(dry_run=args.dry_run))
+            operation = handler.move(destination=argsp.output, dry_run=argsp.dry_run)
+            if operation:
+                list_of_operations.append(operation)
         except Exception as e:
             logging.error("[File moving] Could not move {}".format(handler.file_name))
             logging.error(e)
             logging.debug(e, exc_info=True)
 
     # Write a cancel file
-    if args.dry_run and len(list_of_operations) > 0:
+    if argsp.dry_run and len(list_of_operations) > 0:
         logging.info("Writing cancel file...")
-        with open(os.path.join(args.folder, args.cancel_file), "w") as f:
-            for origin,destination in list_of_operations:
+        with open(os.path.join(argsp.output, argsp.cancel_file), "w", encoding="utf-8") as f:
+            for origin, destination in list_of_operations:
                 f.write("{} : {}\n".format(origin, destination))
-            logging.info("Written "+args.cancel_file)
+            logging.info("Written " + argsp.cancel_file)
 
     logging.info("Done")
 
 
-def action_list(args):
+def action_list(argsp):
     logging.info("Listing operations")
-    with open(args.config, 'r') as stream:
+    with open(argsp.config, 'r') as stream:
         try:
             config = yaml.load(stream, Loader=yaml.FullLoader)
         except yaml.YAMLError as exc:
             logging.error(exc)
             sys.exit(1)
-    if args.verbose:
+    if argsp.verbose:
         rich.print(config["operations"])
     else:
         for line in config["operations"].keys():
             print(line)
 
 
-def action_help(args):
-    parser.parse_args(['-h'])
+def action_help(argsp):
+    if argsp:
+        parser.parse_args(['-h'])  # This will print the help
 
 
-def action_cancel(args):
-    with open(os.path.join(args.cancel_file), "r") as f:
+def action_cancel(argsp):
+    with open(os.path.join(argsp.cancel_file), "r") as f:
         for line in f:
             try:
                 origin, destination = line.split(" : ")
@@ -146,7 +154,7 @@ if __name__ == '__main__':
 
     # Parse arguments
     parser = argparse.ArgumentParser(description='A simple scrip to sort files according to a plethora of criteria.')
-    parser.add_argument('-v','--verbose', help='Verbose.', action="count", default=0)
+    parser.add_argument('-v', '--verbose', help='Verbose.', action="count", default=0)
     parser.add_argument('--version', action='version', version='%(prog)s 1.0')
     parser.add_argument('--config', help='The config file.', default='config.yaml')
     # parser.add_argument('--log', help='The log file.', default=None)
@@ -161,7 +169,7 @@ if __name__ == '__main__':
     parser_help = subparsers.add_parser('help', help='Show help')
     parser_cancel = subparsers.add_parser('cancel', help='Cancel')
     parser_sort.add_argument('folder', help='The folder to sort.')
-    parser_sort.add_argument("-o", '--output', help='The output folder.', default=None)
+    parser_sort.add_argument("-o", '--output', help='The output folder.', default=".")
     parser_sort.add_argument('-c', '--operations', help='The specific batch of operations to draw from.', default='default_operations')
     parser_sort.add_argument('--dry-run', help='Dry run.', action='store_true')
 

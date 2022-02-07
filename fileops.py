@@ -40,8 +40,9 @@ class DirectoryHandler:
 
     def get_files(self):
         for file in self.get_file_list():
-            if os.path.isfile(os.path.join(self.dir_path, file)):
-                yield file
+            fullname = os.path.join(self.dir_path, file)
+            if os.path.isfile(fullname):
+                yield fullname
 
     def get_directories(self):
         for file in self.get_file_list():
@@ -61,10 +62,11 @@ class FileHandler:
     def __init__(self, file_path):
         self.file_path = file_path
         self.file_name = os.path.basename(file_path)
+        self.dir_path = os.path.dirname(file_path)
         self.name = self.file_name
         self.base_name, self.extension = os.path.splitext(self.file_name)
         self.type = self.guess_file_type()
-        self.destination = None
+        self.future_name = None  # Do a no operation
 
     def get_file_path(self):
         return self.file_path
@@ -108,30 +110,33 @@ class FileHandler:
     def sort(self, list_of_condition_dicts, default=None):
         for condition in list_of_condition_dicts:
             if self.fills_all_conditions(condition['conditions'].split('\n')[:-1]):
-                self.destination = condition['destination']
-                return self.destination
-        logging.debug('No destination found for file: ' + self.file_name)
-        self.destination = default
+                self.future_name = condition['destination']
+                return self.future_name
+        logging.warning("The file {} doesn't meet any criteria, reverting to default".format(self.file_name))
+        self.future_name = default
         return default
 
-    def move(self, destination=None, dry_run=False):
+    def move(self, destination=".", dry_run=False):
         if dry_run:
             dry_run_message = ' > [dry] '
         else:
             dry_run_message = ''
 
-        if destination is None:
-            destination = self.destination.format(obj=self)
+        if self.future_name is None:
+            logging.debug('No future_name found for file: ' + self.file_name)  # This is a no-op
+            return
+        destination = os.path.join(destination, self.future_name.format(obj=self))
         destination_dir = os.path.dirname(destination)
         if not os.path.exists(destination_dir):
-            logging.debug(dry_run_message+'Creating directory: ' + destination_dir)
+            logging.info(dry_run_message+'Creating directory: ' + destination_dir)
             if not dry_run:
                 os.makedirs(destination_dir)
 
-        logging.debug(dry_run_message+'Moving file: ' + self.file_name + ' to: ' + destination)
+        logging.info(dry_run_message+'Moving file: ' + self.name + ' to: ' + destination)
         if not dry_run:
             os.rename(self.file_path, destination)
         return self.file_path, destination
+
 
 class ArtistHandler(FileHandler):
     def __init__(self, file_path):
@@ -141,15 +146,15 @@ class ArtistHandler(FileHandler):
     def guess_artist_and_file_name(self):
         """Try to guess artist from file name"""
         regex = [
-            r"(?P<artist>[^-]+)-(?P<file_name>.+)$",
             r"(?P<file_name>.+) by (?P<artist>.+)$",
-            r"(?P<artist>.+)_(?P<file_name>.+)$",
+            r"(?P<artist>[^-]+)-(?P<file_name>.+)$",
+            # r"(?P<artist>.+)_(?P<file_name>.+)$",
         ]
         try:
             for r in regex:
                 m = re.match(r, self.file_name)
                 if m:
-                    return m.group("artist"), m.group("file_name")
+                    return m.group("artist").rstrip(" "), m.group("file_name").lstrip(" ")
             return None, self.file_name
         except re.error as e:
             logging.error("An error occured while processing regex on " + self.file_name)
