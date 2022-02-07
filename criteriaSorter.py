@@ -99,7 +99,7 @@ def action_sort(argsp):
             logging.debug(e, exc_info=True)
 
     # Write a cancel file
-    if argsp.dry_run and len(list_of_operations) > 0:
+    if not argsp.dry_run and len(list_of_operations) > 0 or argsp.verbose > 3:
         logging.info("Writing cancel file...")
         with open(os.path.join(argsp.output, argsp.cancel_file), "w", encoding="utf-8") as f:
             for origin, destination in list_of_operations:

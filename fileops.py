@@ -146,7 +146,7 @@ class ArtistHandler(FileHandler):
     def guess_artist_and_file_name(self):
         """Try to guess artist from file name"""
         regex = [
-            r"(?P<file_name>.+) by (?P<artist>.+)$",
+            r"(?P<file_name>.+) by (?P<artist>[^\.]+)\..*$",
             r"(?P<artist>[^-]+)-(?P<file_name>.+)$",
             # r"(?P<artist>.+)_(?P<file_name>.+)$",
         ]
