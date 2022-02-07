@@ -5,10 +5,11 @@ general:
   debug: true
   log_file: logs/criteriasorter.log
   log_level: debug
-  log_format: '%(asctime)s %(levelname)s %(message)s'
+  log_format: '> %(asctime)s %(message)s'
   dry_run: false
   save_config: false
-  debug_operation: sort_junk_folder
+  default_operations: sort_junk_folder
+  handler : ArtistHandler
 
 operations:
   sort_junk_folder:

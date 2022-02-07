@@ -1,5 +1,5 @@
 # All operation related to file and directory
-
+import logging
 import os
 import re
 
@@ -38,6 +38,16 @@ class DirectoryHandler:
     def get_file_list(self):
         return os.listdir(self.dir_path)
 
+    def get_files(self):
+        for file in self.get_file_list():
+            if os.path.isfile(os.path.join(self.dir_path, file)):
+                yield file
+
+    def get_directories(self):
+        for file in self.get_file_list():
+            if os.path.isdir(os.path.join(self.dir_path, file)):
+                yield file
+
     def get_file_list_with_size(self):
         file_list = self.get_file_list()
         file_list_with_size = []
@@ -52,6 +62,7 @@ class FileHandler:
         self.file_path = file_path
         self.file_name = os.path.basename(file_path)
         self.name, self.extension = os.path.splitext(self.file_name)
+        self.type = self.guess_file_type()
 
     def get_file_path(self):
         return self.file_path
@@ -63,7 +74,10 @@ class FileHandler:
         return os.path.splitext(self.file_name)[1]
 
     def guess_file_type(self):
-        return TYPE_BY_EXTENTION.get(self.get_extension())
+        try:
+            return TYPE_BY_EXTENTION[self.extension[1:]]
+        except KeyError:
+            return None
 
     def is_image(self):
         return self.guess_file_type() == 'image'
@@ -78,7 +92,6 @@ class FileHandler:
         return self.guess_file_type() == 'document'
 
 
-
 class ArtistHandler(FileHandler):
     def __init__(self, file_path):
         super().__init__(file_path)
@@ -87,15 +100,21 @@ class ArtistHandler(FileHandler):
     def guess_artist_and_file_name(self):
         """Try to guess artist from file name"""
         regex = [
-            r"?(?P<artist>[^-]+)-(?P<file_name>.+)$",
-            r"?(?P<file_name>.+) by (?P<artist>.+)$",
-            r"?(?P<artist>.+)_(?P<file_name>.+)$",
+            r"(?P<artist>[^-]+)-(?P<file_name>.+)$",
+            r"(?P<file_name>.+) by (?P<artist>.+)$",
+            r"(?P<artist>.+)_(?P<file_name>.+)$",
         ]
-        for r in regex:
-            m = re.match(r, self.file_name)
-            if m:
-                return m.group("artist"), m.group("file_name")
-        return None, self.file_name
+        try:
+            for r in regex:
+                m = re.match(r, self.file_name)
+                if m:
+                    return m.group("artist"), m.group("file_name")
+            return None, self.file_name
+        except re.error as e:
+            logging.error("An error occured while processing regex on " + self.file_name)
+            logging.error(e)
+            logging.info("", exc_info=True)
+            return None, self.file_name
 
     def get_artist(self):
         return self.artist
@@ -110,4 +129,3 @@ class ArtistHandler(FileHandler):
         if self.has_artist():
             return "{} - {}".format(self.artist, self.file_name)
         return self.file_name
-
