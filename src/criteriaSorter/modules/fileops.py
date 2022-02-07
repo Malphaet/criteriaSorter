@@ -35,22 +35,28 @@ class DirectoryHandler:
     def get_dir_size_in_gb(self):
         return self.get_dir_size() / (1024 * 1024 * 1024)
 
-    def get_file_list(self):
+    def get_full_list(self):
         return os.listdir(self.dir_path)
 
     def get_files(self):
-        for file in self.get_file_list():
+        for file in self.get_full_list():
             fullname = os.path.join(self.dir_path, file)
             if os.path.isfile(fullname):
                 yield fullname
 
+    def get_file_list(self):
+        return list(self.get_files())
+
     def get_directories(self):
-        for file in self.get_file_list():
+        for file in self.get_full_list():
             if os.path.isdir(os.path.join(self.dir_path, file)):
                 yield file
 
-    def get_file_list_with_size(self):
-        file_list = self.get_file_list()
+    def get_directory_list(self):
+        return list(self.get_directories())
+
+    def get_full_list_with_size(self):
+        file_list = self.get_full_list()
         file_list_with_size = []
         for file in file_list:
             file_path = os.path.join(self.dir_path, file)
