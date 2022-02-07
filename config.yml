@@ -1,0 +1,31 @@
+general:
+  name: CriteriaSorter
+  version: 0.1
+  verbose: true
+  debug: true
+  log_file: logs/criteriasorter.log
+  log_level: debug
+  log_format: '%(asctime)s %(levelname)s %(message)s'
+  dry_run: false
+  save_config: false
+  debug_operation: sort_junk_folder
+
+operations:
+  sort_junk_folder:
+    operation_order: |
+      operation1
+      operation2
+      operation3
+    operation1:
+      conditions : |
+        has_artist
+        is_image
+      destination : artists/{obj.artist}/{obj.name}
+    operation2:
+      conditions : |
+        is_video
+      destination : vids/{obj.name}
+    operation3:
+      conditions : |
+        is_audio
+      destination : audios/{obj.name}
