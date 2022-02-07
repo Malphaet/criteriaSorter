@@ -2,12 +2,18 @@
 import logging
 import os
 import re
+# import pathlib
+
 
 EXTENTION_BY_TYPE = {
     'image': ["jpg", "jpeg", "png", "gif", "bmp", "tiff", "tif"],
     'video': ["mp4", "avi", "mkv", "mov", "flv", "wmv", "mpg", "mpeg", "m4v", "3gp", "3g2"],
-    'music': ["mp3", "wav", "wma", "ogg", "flac", "aac", "m4a"],
-    'document': ["doc", "docx", "xls", "xlsx", "ppt", "pptx", "pdf", "txt", "rtf", "odt", "ods", "odp", "odg", "odf", "odc", "odb", "csv", "tsv", "html", "htm", "css", "js", "json", "xml", "yml", "yaml", "java", "py", "c", "cpp", "h", "hpp", "hxx", "h++", "cs", "php", "sql", "log", "md", "markdown", "rst", "tex", "latex", "bib", "bibtex"]
+    'music': ["mp3", "wav", "wma", "ogg", "flac", "aac", "m4a", "aiff"],
+    'document': ["doc", "docx", "xls", "xlsx", "ppt", "pptx", "pdf", "txt", "rtf", "odt",
+                 "ods", "odp", "odg", "odf", "odc", "odb", "csv", "tsv", "html", "htm",
+                 "css", "js", "json", "xml", "yml", "yaml", "java", "py", "c", "cpp", "h",
+                 "hpp", "hxx", "h++", "cs", "php", "sql", "log", "md", "markdown", "rst",
+                 "tex", "latex", "bib", "bibtex"]
 }
 
 TYPE_BY_EXTENTION = {}
@@ -80,6 +86,15 @@ class FileHandler:
     def get_file_name(self):
         return self.file_name
 
+    def get_file_size(self):
+        return os.path.getsize(self.file_path)
+
+    def get_file_size_in_mb(self):
+        return self.get_file_size() / (1024 * 1024)
+
+    def get_file_size_in_gb(self):
+        return self.get_file_size() / (1024 * 1024 * 1024)
+
     def get_extension(self):
         return os.path.splitext(self.file_name)[1]
 
@@ -107,9 +122,27 @@ class FileHandler:
     def is_document(self):
         return self.guess_file_type() == 'document'
 
+    def is_unknown(self):
+        return self.guess_file_type() is None
+
+    def is_bigger_than(self, size):
+        return self.get_file_size() > int(size)
+
+    def is_smaller_than(self, size):
+        return self.get_file_size() < int(size)
+
+    def is_bigger_than_mb(self, size):
+        return self.is_bigger_than(int(size) * 1024 * 1024)
+
+    def is_smaller_than_mb(self, size):
+        return self.is_smaller_than(int(size) * 1024 * 1024)
+
     def fills_all_conditions(self, list_functions):
-        for function in list_functions:
-            if not self.__getattribute__(function)():
+        for function_str in list_functions:
+            function_split = function_str.split(',')
+            function_name = function_split[0]
+            function_args = function_split[1:]
+            if not getattr(self, function_name)(*function_args):
                 return False
         return True
 

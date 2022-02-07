@@ -3,9 +3,23 @@
 from criteriaSorter.modules import fileops
 import pathlib
 import os
+import pytest
 
 
 _BASE_PATH = pathlib.Path("/Test/Path")
+_LIST_BASE_FILE_PATH = [
+    (_BASE_PATH / "TestFile.txt", "document", "is_document"),
+    (_BASE_PATH / "TestFile.pdf", "document", "is_document"),
+    (_BASE_PATH / "TestFile.doc", "document", "is_document"),
+    (_BASE_PATH / "TestFile.jpg", "image", "is_image"),
+    (_BASE_PATH / "TestFile.png", "image", "is_picture"),
+    (_BASE_PATH / "TestFile.mp3", "music", "is_music"),
+    (_BASE_PATH / "TestFile.aiff", "music", "is_audio"),
+    (_BASE_PATH / "TestFile.mp4", "video", "is_video"),
+    (_BASE_PATH / "TestFile.mpg", "video", "is_video"),
+    (_BASE_PATH / "TestFile.unknown_type", None, "is_unknown"),
+]
+
 
 class MockOS:
     @staticmethod
@@ -21,12 +35,6 @@ class MockOS:
             return ['b', 'c']
         else:
             return ['a', 'b', 'c']
-
-    @staticmethod
-    def path_exists(path):
-        if path in [_BASE_PATH / i for i in ['a', 'b', 'c', 'a/b', 'a/c', 'a\\b', 'a\\c']]:
-            return True
-        return True
 
     @staticmethod
     def isdir(path):
@@ -54,20 +62,8 @@ class MockOS:
             return MockOS.getsize(path)
 
 
-def test_DirectoryHandler(monkeypatch):
-    # Regular invocation
-    handler = fileops.DirectoryHandler(".")
-
-    # Test regular calls, doen't test the return value
-    handler.get_dir_path()
-    handler.get_dir_name()
-    handler.get_dir_size()
-    handler.get_dir_size_in_mb()
-    handler.get_dir_size_in_gb()
-    assert [f for f in handler.get_files()]
-    assert [f for f in handler.get_directories()]
-    handler.get_full_list_with_size()
-
+@pytest.fixture
+def handler(monkeypatch):
     # Using a mock function to test return value
     handler = fileops.DirectoryHandler("/Test/Path")
     monkeypatch.setattr(os, 'listdir', MockOS.listdir)
@@ -76,7 +72,18 @@ def test_DirectoryHandler(monkeypatch):
     monkeypatch.setattr(os.path, 'getsize', MockOS.getsize)
     monkeypatch.setattr(os.path, 'join', MockOS.join)
     monkeypatch.setattr(os, 'stat', MockOS.stat)
+    return handler
 
+
+@pytest.fixture
+def f_handler(monkeypatch):
+    # Regular invocation
+    monkeypatch.setattr(os.path, 'getsize', MockOS.getsize)
+    monkeypatch.setattr(os.path, 'isfile', MockOS.isfile)
+    monkeypatch.setattr(os.path, 'stat', MockOS.stat)
+
+
+def test_DirectoryHandler(handler):
     # Test return values
     assert pathlib.Path(handler.get_dir_path()) == _BASE_PATH
     assert handler.get_dir_name() == "Path"
@@ -88,9 +95,30 @@ def test_DirectoryHandler(monkeypatch):
     assert handler.get_file_list() == [_BASE_PATH / "b", _BASE_PATH / "c"]
     assert handler.get_directory_list() == ["a"]
 
-# def test_FileHandler():
-#     handler = fileops.FileHandler(".")
-#
-#
+
+@pytest.mark.parametrize("path, expected, method", _LIST_BASE_FILE_PATH)
+def test_FileHandler(f_handler, path, expected, method):
+    # Test return values
+
+    handler = fileops.FileHandler(str(path))
+
+    assert pathlib.Path(handler.get_file_path()) == path
+    assert handler.get_file_name() == path.name
+    assert handler.get_file_size() == (1024 * 1024) * 1
+    assert handler.get_file_size_in_mb() == 1
+    assert handler.get_file_size_in_gb() == 1 / 1024
+    assert handler.guess_file_type() == expected
+    assert handler.get_extension() == path.suffix
+    assert handler.__getattribute__(method)() is True
+    assert handler.fills_all_conditions(
+        [method, method]
+    )
+    assert handler.fills_all_conditions(["is_document","is_picture"]) is False
+    assert handler.fills_all_conditions(["is_bigger_than,10","is_bigger_than_mb,0","is_smaller_than,100000000","is_smaller_than_mb,1000"]) is True
+
+# def test_FileHandler_exception(f_handler):
+#     handler = fileops.FileHandler(str(path))
+#     assert f_handler.guess_file_type() is None
+
 # def test_ArticleHandler():
 #     handler = fileops.ArtistHandler(".")
