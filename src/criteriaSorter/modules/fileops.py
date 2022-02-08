@@ -16,6 +16,12 @@ EXTENTION_BY_TYPE = {
                  "tex", "latex", "bib", "bibtex"]
 }
 
+_guess_artist_regex = [
+    re.compile(r"(?P<file_name>.+)\s+by\s+(?P<artist>[^.]+)\s*\..*$"),
+    re.compile(r"(?P<artist>[^-]+)\s*-\s*(?P<file_name>[^.]+)\s*\..*"),
+    # re.compile(r"(?P<artist>.+)_(?P<file_name>.+)$"),
+]
+
 TYPE_BY_EXTENTION = {}
 for i, j in EXTENTION_BY_TYPE.items():
     for k in j:
@@ -148,9 +154,20 @@ class FileHandler:
 
     def sort(self, list_of_condition_dicts, default=None):
         for condition in list_of_condition_dicts:
-            if self.fills_all_conditions(condition['conditions'].split('\n')[:-1]):
-                self.future_name = condition['destination']
-                return self.future_name
+            try:
+                if not condition:
+                    raise KeyError
+                list_conditions = condition['conditions'].split('\n')[:-1]
+                if self.fills_all_conditions(list_conditions):
+                    self.future_name = condition['destination']
+                    return self.future_name
+            except KeyError:
+                logging.error('No conditions found in condition dict')
+                logging.error(condition)
+                logging.info("", exc_info=True)
+                self.future_name = default
+                return default
+
         logging.warning("The file {} doesn't meet any criteria, reverting to default".format(self.file_name))
         self.future_name = default
         return default
@@ -167,39 +184,37 @@ class FileHandler:
         destination = os.path.join(destination, self.future_name.format(obj=self))
         destination_dir = os.path.dirname(destination)
         if not os.path.exists(destination_dir):
-            logging.info(dry_run_message+'Creating directory: ' + destination_dir)
+            logging.info('{}Creating directory: {}'.format(dry_run_message, destination_dir))
             if not dry_run:
                 os.makedirs(destination_dir)
 
-        logging.info(dry_run_message+'Moving file: ' + self.name + ' to: ' + destination)
+        logging.info('{}Moving file: {} to {}'.format(dry_run_message, self.name, destination))
         if not dry_run:
             os.rename(self.file_path, destination)
         return self.file_path, destination
 
 
 class ArtistHandler(FileHandler):
-    def __init__(self, file_path):
+    def __init__(self, file_path, regex=None):
         super().__init__(file_path)
+        if regex is None:
+            regex = _guess_artist_regex.copy()
+        self.regex_list = regex
         self.artist, self.file_name = self.guess_artist_and_file_name()
 
     def guess_artist_and_file_name(self):
         """Try to guess artist from file name"""
-        regex = [
-            r"(?P<file_name>.+) by (?P<artist>[^\.]+)\..*$",
-            r"(?P<artist>[^-]+)-(?P<file_name>.+)$",
-            # r"(?P<artist>.+)_(?P<file_name>.+)$",
-        ]
         try:
-            for r in regex:
+            for r in self.regex_list:
                 m = re.match(r, self.file_name)
                 if m:
-                    return m.group("artist").rstrip(" "), m.group("file_name").lstrip(" ")
-            return None, self.file_name
+                    return m.group("artist").strip(" "), m.group("file_name").strip(" ")
+            return None, self.base_name
         except re.error as e:
             logging.error("An error occured while processing regex on " + self.file_name)
             logging.error(e)
             logging.info("", exc_info=True)
-            return None, self.file_name
+            return None, self.base_name
 
     def get_artist(self):
         return self.artist
