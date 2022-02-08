@@ -28,7 +28,7 @@ _LIST_BASE_FILE_PATH = [
 _TEST_ARTIST_FILE_PATH = [
     (_BASE_PATH / "TestArtist  -    Testpicture.jpg", "TestArtist", "Testpicture", 'Artists/{obj.artist}/{obj.name}'),
     (_BASE_PATH / "Testpicture       by  TestArtist.jpg", "TestArtist", "Testpicture", 'Artists/{obj.artist}/{obj.name}'),
-    (_BASE_PATH / "Testpicture  by                 TestArtist.jpg", "TestArtist", "Testpicture", 'Artists/{obj.artist}/{obj.name}'),
+    (_BASE_PATH / "Testpicture  by    \t     TestArtist.jpg", "TestArtist", "Testpicture", 'Artists/{obj.artist}/{obj.name}'),
     (_BASE_PATH / "Testpicture  by  TestArtist.jpg", "TestArtist", "Testpicture", 'Artists/{obj.artist}/{obj.name}'),
     (_BASE_PATH / "Testpicture  made with TestArtist.jpg", None, "Testpicture  made with TestArtist", SUPERNONE),
 ]
