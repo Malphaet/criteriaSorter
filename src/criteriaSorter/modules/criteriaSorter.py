@@ -5,7 +5,7 @@ import argparse
 import logging
 import os
 import time
-import rich
+
 from rich.logging import RichHandler
 from criteriaSorter.modules.fileops import DirectoryHandler, FileHandler, ArtistHandler
 
@@ -118,7 +118,7 @@ def action_list(argsp):
             logging.error(exc)
             sys.exit(1)
     if argsp.verbose:
-        rich.print(config["operations"])
+        print(config["operations"])
     else:
         for line in config["operations"].keys():
             print(line)
@@ -153,7 +153,9 @@ def config_log(argsp):
     # Set up logging
     # _LOG_FORMAT = ' > [%(levelname)s:%(filename)s] - %(message)s'
     _LOG_FORMAT = '%(message)s'
-    if argsp.verbose == 0:
+    if argsp.silent:
+        logging.basicConfig(level=logging.CRITICAL, format=_LOG_FORMAT)
+    elif argsp.verbose == 0:
         logging.basicConfig(level=logging.ERROR, format=_LOG_FORMAT, handlers=[RichHandler()])
     elif argsp.verbose == 1:
         logging.basicConfig(level=logging.WARNING, format=_LOG_FORMAT, handlers=[RichHandler()])
@@ -171,6 +173,7 @@ def parse_args(argvp):
     parser = argparse.ArgumentParser(description='A simple scrip to sort files according to a plethora of criteria.',
                                      prog='criteriaSorter')
     parser.add_argument('-v', '--verbose', help='Verbose.', action="count", default=0)
+    parser.add_argument('-s', '--silent', help='Silent.', action="store_true", default=False)
     parser.add_argument('--version', action='version', version='%(prog)s 1.0')
     parser.add_argument('--config', help='The config file.', default='config.yaml')
     # parser.add_argument('--log', help='The log file.', default=None)
