@@ -168,7 +168,7 @@ def parse_args(argvp):
         sys.argv.append('--help')
 
     # Parse arguments
-    parser = argparse.ArgumentParser(description='A simple scrip to sort files according to a plethora of criteria.')
+    parser = argparse.ArgumentParser(description='A simple scrip to sort files according to a plethora of criteria.', prog='criteriaSorter')
     parser.add_argument('-v', '--verbose', help='Verbose.', action="count", default=0)
     parser.add_argument('--version', action='version', version='%(prog)s 1.0')
     parser.add_argument('--config', help='The config file.', default='config.yaml')
@@ -188,7 +188,7 @@ def parse_args(argvp):
     parser_sort.add_argument('-c', '--operations', help='The specific batch of operations to draw from.', default='default_operations')
     parser_sort.add_argument('--dry-run', help='Dry run.', action='store_true')
 
-    args = parser.parse_args()
+    args = parser.parse_args(argvp)
     return args
 
 
