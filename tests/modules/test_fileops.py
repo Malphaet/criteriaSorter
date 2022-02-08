@@ -92,12 +92,61 @@ class MockOS:
     def join(path, *args):
         return pathlib.Path(path).joinpath(*args)
 
-    @staticmethod
-    def stat(path):
-        if pathlib.Path(path) == _BASE_PATH / 'a':
-            return MockOS.getsize(path)
-        else:
-            return MockOS.getsize(path)
+    # @staticmethod
+    # def stat(path):
+    #     if pathlib.Path(path) == _BASE_PATH / 'a':
+    #         return MockOS.getsize(path)
+    #     else:
+    #         return MockOS.getsize(path)
+    class stat:
+        @staticmethod
+        def S_ISDIR(path):
+            if pathlib.Path(path) == _BASE_PATH / 'a':
+                return True
+            else:
+                return False
+
+        @staticmethod
+        def S_ISREG(path):
+            if pathlib.Path(path) != _BASE_PATH / 'a':
+                return True
+            else:
+                return False
+
+        @staticmethod
+        def S_ISLNK(path):
+            return False
+
+        @staticmethod
+        def S_ISFIFO(path):
+            return False
+
+        @staticmethod
+        def S_ISSOCK(path):
+            return False
+
+        @staticmethod
+        def S_ISBLK(path):
+            return False
+
+        @staticmethod
+        def S_ISCHR(path):
+            return False
+
+        @staticmethod
+        def S_ISDOOR(path):
+            return False
+
+        @staticmethod
+        def S_ISPORT(path):
+            return False
+
+        @staticmethod
+        def __call__(path):
+            if pathlib.Path(path) == _BASE_PATH / 'a':
+                return MockOS.getsize(path)
+            else:
+                return MockOS.getsize(path)
 
     @staticmethod
     def rename(src, dst):
@@ -126,7 +175,7 @@ class MockOS:
         if "__nonexistent__" in str(path):
             return True
         else:
-            return True
+            return False
 
 
 @pytest.fixture
