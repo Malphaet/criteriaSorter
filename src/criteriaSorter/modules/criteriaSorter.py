@@ -1,5 +1,6 @@
 import sys
 
+import rich.pretty
 import yaml
 import argparse
 import logging
@@ -16,7 +17,7 @@ def action_sort(argsp):
         try:
             config = yaml.load(stream, Loader=yaml.FullLoader)
         except yaml.YAMLError as exc:
-            logging.error(exc)
+            logging.critical(exc)
             sys.exit(1)
 
     # Load the operations
@@ -28,7 +29,7 @@ def action_sort(argsp):
             operations_name = config[argsp.operation]
         operations_config = config["operations"][operations_name]
     except Exception:
-        logging.error("Could not load operations")
+        logging.critical("Could not load operations")
         sys.exit(1)
 
     # Pick the right handler
@@ -37,7 +38,7 @@ def action_sort(argsp):
     elif config["general"]["handler"] == "ArtistHandler":
         Handler = ArtistHandler
     else:
-        logging.error("Could not load handler "+config["general"]["handler"])
+        logging.critical("Could not load handler "+config["general"]["handler"])
         sys.exit(1)
 
     # Create the DirectorySorter
@@ -118,10 +119,10 @@ def action_list(argsp):
             logging.error(exc)
             sys.exit(1)
     if argsp.verbose:
-        print(config["operations"])
+        rich.print(config["operations"])
     else:
         for line in config["operations"].keys():
-            print(line)
+            rich.print(line)
 
 
 # def action_help(argsp):

@@ -2,8 +2,6 @@
 import logging
 import os
 import re
-# import pathlib
-
 
 EXTENTION_BY_TYPE = {
     'image': ["jpg", "jpeg", "png", "gif", "bmp", "tiff", "tif"],
