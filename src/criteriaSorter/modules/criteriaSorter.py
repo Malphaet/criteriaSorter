@@ -111,19 +111,21 @@ def action_sort(argsp):
 
 
 def action_list(argsp):
-    logging.info("Listing operations")
-    with open(argsp.config, 'r') as stream:
-        try:
-            config = yaml.load(stream, Loader=yaml.FullLoader)
-        except yaml.YAMLError as exc:
-            logging.error(exc)
-            sys.exit(1)
-    if argsp.verbose:
-        rich.print(config["operations"])
-    else:
-        for line in config["operations"].keys():
-            rich.print(line)
-
+    try:
+        logging.info("Listing operations")
+        with open(argsp.config, 'r') as stream:
+            config = yaml.safe_load(stream)
+        if argsp.verbose:
+            rich.print(config["operations"])
+        else:
+            for line in config["operations"].keys():
+                rich.print(line)
+    except TypeError:
+        logging.critical("No operations found in config file {}".format(argsp.config))
+        sys.exit(1)
+    except FileNotFoundError:
+        logging.critical("Config {} file not found".format(argsp.config))
+        sys.exit(1)
 
 # def action_help(argsp):
 #     if argsp:

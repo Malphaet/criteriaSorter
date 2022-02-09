@@ -124,13 +124,17 @@ def test_action_list(verbose, capsys):
         assert "condition" in capsys.readouterr().out
 
 
-# @pytest.mark.parametrize("args", [["--config=noconf.yaml","list"]])
-# def test_action_list_error(args, caplog, monkeypatch):
-#
-#     with open("noconf.yaml", "w") as f:
-#         f.write("Bad config =:/\n+3")
-#
-#     args = criteriaSorter.parse_args(args)
-#     with pytest.raises(SystemExit):
-#         with caplog.at_level(logging.ERROR):
-#             criteriaSorter.action_list(args)
+@pytest.mark.parametrize("args, error", [
+    [["--config=noconf.yaml", "list"], "No operations found"],
+    [["--config=unexisting_conf", "list"], "Config unexisting_conf file not found"],
+])
+def test_action_list_error(args, error,  caplog, monkeypatch):
+
+    with open("noconf.yaml", "w") as f:
+        f.write("Bad config =:/\n+3")
+
+    args = criteriaSorter.parse_args(args)
+    with pytest.raises(SystemExit):
+        with caplog.at_level(logging.ERROR):
+            criteriaSorter.action_list(args)
+            assert error in caplog.text
