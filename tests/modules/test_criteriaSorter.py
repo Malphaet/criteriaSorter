@@ -5,6 +5,7 @@ import logging
 import importlib
 import pytest
 from criteriaSorter.modules import criteriaSorter
+import tempfile
 
 
 _ARGS_LIST = [
@@ -41,6 +42,12 @@ _GOOD_RESULT = """[MOVED] path/to/destination1 to path/to/file1
 [MOVED] path/to/destination2 to path/to/file2/.
 [MOVED] path/to/destination3/. to path/to/file3/
 """
+
+
+def cldl(*l_file):
+    for f in l_file:
+        f.close()
+        os.remove(f.name)
 
 
 @pytest.mark.parametrize("args, outp", _EXIT_ARGS_LIST)
@@ -102,16 +109,18 @@ class falseArg:
     (io.StringIO(_GOOD_FILE_LIST), _GOOD_RESULT), (io.StringIO(_JUNK_FILE_LIST), _JUNK_RESULT)
 ])
 def test_action_cancel(monkeypatch, list_of_cancels, result_expected, capsys):
+    cancel_file = tempfile.NamedTemporaryFile(mode="w+", suffix=".txt", delete=False)
     monkeypatch.setattr(os, "rename", move)
-    monkeypatch.setattr(os, "remove", move)
+    # monkeypatch.setattr(os, "remove", move)
     monkeypatch.setattr(os, "rmdir", move)
     monkeypatch.setattr(os.path, "join", lambda a: a)
 
-    with open("cancelfile.txt", "w") as f:
+    with open(cancel_file.name, "w") as f:
         f.write(list_of_cancels.read())
-    criteriaSorter.action_cancel(falseArg("cancelfile.txt"))
+    criteriaSorter.action_cancel(falseArg(cancel_file.name))
     assert result_expected in capsys.readouterr().out
 
+    cldl(cancel_file)
 
 @pytest.mark.parametrize("verbose", [0, 1, 2, 3, 4])
 def test_action_list(verbose, capsys):
@@ -129,8 +138,8 @@ def test_action_list(verbose, capsys):
     [["--config=unexisting_conf", "list"], "Config unexisting_conf file not found"],
 ])
 def test_action_list_error(args, error,  caplog, monkeypatch):
-
-    with open("noconf.yaml", "w") as f:
+    no_conf = tempfile.NamedTemporaryFile(mode="w+t", delete=False)
+    with open(no_conf.name, "w") as f:
         f.write("Bad config =:/\n+3")
 
     args = criteriaSorter.parse_args(args)
@@ -138,3 +147,59 @@ def test_action_list_error(args, error,  caplog, monkeypatch):
         with caplog.at_level(logging.ERROR):
             criteriaSorter.action_list(args)
             assert error in caplog.text
+    cldl(no_conf)
+
+def test_load_config():
+    good_conf = tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False)
+    with open(good_conf.name, "w") as f:
+        f.write("""test:
+    - path: path/to/file1
+                """)
+
+    assert criteriaSorter.load_config(good_conf.name) == {"test": [{"path": "path/to/file1"}]}
+    cldl(good_conf)
+
+
+def test_load_config_error():
+    bad_conf = tempfile.NamedTemporaryFile(suffix=".yaml", delete=False)
+    good_conf = tempfile.NamedTemporaryFile(suffix=".yaml", delete=False)
+
+    with open(bad_conf.name, "w") as f:
+        f.write("""test:
+    - path: path/to/file1
+      condition:
+        - path: path/to/file1
+                """)
+
+    with open(good_conf.name, "w") as f:
+        f.write("""operations:
+  sort_junk_folder:
+    operation_order: |
+      operation1
+      operation2
+      operation3
+      operation4
+    operation1:
+      conditions : |
+        has_artist
+        is_image
+      destination : Artists/{obj.artist}/{obj.name}
+    operation2:
+      conditions : |
+        is_video
+      destination : vids/{obj.name}
+    operation3:
+      conditions : |
+        is_audio
+      destination : audios/{obj.name}
+    operation4:
+      conditions : |
+        is_document
+      destination : others/{obj.name}
+""")
+
+    with pytest.raises(SystemExit):
+        conf = criteriaSorter.load_config(bad_conf.name)
+        criteriaSorter.load_operations("default_operation", conf)
+
+    cldl(good_conf, bad_conf)

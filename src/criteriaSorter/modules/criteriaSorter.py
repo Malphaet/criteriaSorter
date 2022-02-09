@@ -11,40 +11,63 @@ from rich.logging import RichHandler
 from criteriaSorter.modules.fileops import DirectoryHandler, FileHandler, ArtistHandler
 
 
-def action_sort(argsp):
-    # Load the config file
-    with open(argsp.config, 'r') as stream:
-        try:
-            config = yaml.load(stream, Loader=yaml.FullLoader)
-        except yaml.YAMLError as exc:
-            logging.critical(exc)
-            sys.exit(1)
+def load_config(config_file):
+    """
+    Load the config file
+    :param config_file: path to the config file
+    :return: config (the loaded config)
+    """
+    with open(config_file, 'r') as stream:
+        config = yaml.safe_load(stream)
+    return config
 
-    # Load the operations
+
+def load_operations(operation_to_load, config):
+    """
+    Load the operations from the config file
+    Operations are stored in a dictionary with the key being the operation name
+    The operations are the various operations to perform on the files, according to a list of criteria
+    :param operation_to_load: the operation to load (string) (default: default_operations)
+    :param config: the config file (yaml)
+    :return: operations (list of operations)
+    """
     try:
-        if argsp.operations == "default_operations":
+        if operation_to_load == "default_operations":
             logging.info("Loading default operations")
             operations_name = config["general"]['default_operations']
         else:
-            operations_name = config[argsp.operation]
+            operations_name = config[operation_to_load]
         operations_config = config["operations"][operations_name]
     except Exception:
         logging.critical("Could not load operations")
         sys.exit(1)
+    return operations_config
 
-    # Pick the right handler
-    if config["general"]["handler"] == "FileHandler":
+
+def load_handler(handler_name):
+    """
+    Pick the handler to use in the config or raises an error if it does not exist
+    :param handler_name: The name of the handler to load
+    :return: Handler (the Handler object)
+    """
+    if handler_name == "FileHandler":
         Handler = FileHandler
-    elif config["general"]["handler"] == "ArtistHandler":
+    elif handler_name == "ArtistHandler":
         Handler = ArtistHandler
     else:
-        logging.critical("Could not load handler "+config["general"]["handler"])
+        logging.critical("Could not load handler "+handler_name)
         sys.exit(1)
+    return Handler
 
-    # Create the DirectorySorter
-    directory_handler = DirectoryHandler(argsp.folder)
 
-    # Get the list of Handler from the directory
+def create_handler_list(directory_handler, Handler, config):
+    """
+    Create a list of handlers for every file in the directory, recursively or not
+    :param directory_handler: The directory handler
+    :param Handler: The handler to use
+    :param config: The config file
+    :return: list of handlers for every file in the directory(ies)
+    """
     handler_list = []
     for file in directory_handler.get_files():
         try:
@@ -56,8 +79,22 @@ def action_sort(argsp):
             logging.error(e)
             logging.debug(e, exc_info=True)
             # sys.exit(1)  # Unsure if this is the right thing to do
+    if config["general"]["recursive"]:
+        # for directory in directory_handler.get_directories():
+        #     logging.debug("[Handler list] Processing directory {}".format(directory))
+        #     directory_handler = DirectoryHandler(directory)
+        #     handler_list.extend(create_handler_list(directory_handler, Handler, operations_config, config))
+        pass
+    return handler_list
 
-    # Get the action to perform on each file from the handler and the operations
+
+def create_operation_list(operations_config, config):
+    """
+    Create a list of operations to perform on the files
+    :param operations_config: The config file for the operations
+    :param config: The general config file
+    :return: list of operations to perform on the files
+    """
     operation_list = []
     for operation in operations_config["operation_order"].split("\n")[:-1]:
         try:
@@ -67,14 +104,18 @@ def action_sort(argsp):
             logging.error("[Operation list] Could not load operation {} : {}".format(operation, e))
             logging.debug(e, exc_info=True)
             # sys.exit(1)  # Unsure if this is the right thing to do
+    return operation_list
 
-    # Find the default destination
-    if "default_destination" in operations_config:
-        default_destination = operations_config["default_destination"]["destination"]
-    else:
-        default_destination = None
 
-    # Sort the files
+def execute_sorting(handler_list, operation_list, default_destination, argsp):
+    """
+    Execute the sorting process on all files
+    :param handler_list: The list of handlers to use
+    :param operation_list: The list of operations to perform (according to criteria)
+    :param default_destination: The default destination for the files (if no operation found)
+    :param argsp: The arguments passed to the program
+    :return: None
+    """
     for handler in handler_list:
         try:
             # rich.inspect(operation_list)
@@ -86,31 +127,87 @@ def action_sort(argsp):
             logging.error(e)
             logging.debug(e, exc_info=True)
 
-    # Move the files
-    list_of_operations = []
+
+def execute_moves(handler_list, argsp, output_directory):
+    list_of_moves = []
     for handler in handler_list:
         try:
             logging.debug("[File moving] Processing {}".format(handler.file_name))
-            operation = handler.move(destination=argsp.output, dry_run=argsp.dry_run)
+            operation = handler.move(destination=output_directory, dry_run=argsp.dry_run)
             if operation:
-                list_of_operations.append(operation)
+                list_of_moves.append(operation)
         except Exception as e:
             logging.error("[File moving] Could not move {}".format(handler.file_name))
             logging.error(e)
             logging.debug(e, exc_info=True)
+    return list_of_moves
 
-    # Write a cancel file
-    if not argsp.dry_run and len(list_of_operations) > 0 or argsp.verbose > 3:
+
+def write_cancel_file(list_of_operations, output, verbose, dry_run):
+    """
+    Write the cancel file
+    :param list_of_operations: The list of operations to cancel
+    :param output: The output file to write to
+    :param verbose: The verbosity of the program
+    :param dry_run: Whether the program is in dry run mode
+    :return: None
+    """
+    if not dry_run and len(list_of_operations) > 0 or verbose > 3:
         logging.info("Writing cancel file...")
-        with open(os.path.join(argsp.output, argsp.cancel_file), "w", encoding="utf-8") as f:
+        with open(output, "w", encoding="utf-8") as f:
             for origin, destination in list_of_operations:
                 f.write("{} : {}\n".format(origin, destination))
-            logging.info("Written " + argsp.cancel_file)
+            logging.info("Written " + output)
 
-    logging.info("Done")
+
+def action_sort(argsp):
+    """
+    Sort the files
+    :param argsp: the arguments passed to the program
+    :return: None
+    """
+    # Load the config file
+    config = load_config(argsp.config)
+
+    # Load the operations
+    operations_config = load_operations(argsp.operations, config)
+
+    # Pick the right handler
+    Handler = load_handler(config["general"]["handler"])
+
+    # Create the DirectorySorter
+    directory_handler = DirectoryHandler(argsp.folder)
+
+    # Get the list of Handler from the directory
+    handler_list = create_handler_list(directory_handler, Handler, config)
+
+    # Get the action to perform on each file from the handler and the operations
+    operation_list = create_operation_list(operations_config, handler_list)
+
+    # Find the default destination
+    if "default_destination" in operations_config:
+        default_destination = operations_config["default_destination"]["destination"]
+    else:
+        default_destination = None
+
+    # Sort the files
+    execute_sorting(handler_list, operation_list, default_destination, argsp)
+
+    # Move the files
+    list_of_moves = execute_moves(handler_list, argsp, default_destination)
+
+    # Write a cancel file
+    write_cancel_file(list_of_moves, os.path.join(argsp.output, argsp.cancel_file), argsp.verbose, argsp.dry_run)
+
+    logging.info("All operations done")
 
 
 def action_list(argsp):
+    """
+    List the sorting operations
+    :param argsp: the arguments passed to the program
+    :return: None
+    """
     try:
         logging.info("Listing operations")
         with open(argsp.config, 'r') as stream:
@@ -133,6 +230,11 @@ def action_list(argsp):
 
 
 def action_cancel(argsp):
+    """
+    Cancel the operations done by the program, given a cancel file
+    :param argsp: The arguments passed to the program
+    :return: None
+    """
     with open(os.path.join(argsp.cancel_file), "r") as f:
         for line in f:
             try:
@@ -153,6 +255,11 @@ _LIST_ACTIONS = {
 
 
 def config_log(argsp):
+    """
+    Configure the logging
+    :param argsp: The arguments passed to the program
+    :return: None
+    """
     # Set up logging
     # _LOG_FORMAT = ' > [%(levelname)s:%(filename)s] - %(message)s'
     _LOG_FORMAT = '%(message)s'
@@ -169,6 +276,11 @@ def config_log(argsp):
 
 
 def parse_args(argvp):
+    """
+    Parse the arguments passed to the program
+    :param argvp: The arguments passed to the program
+    :return: argsp: The arguments, parsed as an object
+    """
     if len(argvp) == 1:
         sys.argv.append('--help')
 
@@ -202,8 +314,8 @@ def parse_args(argvp):
 
 def main(argvp):
     """
-    Main function
-    :return:
+    Main function, called by __main__
+    :return: None
     """
     # Parse arguments
     args = parse_args(argvp)
