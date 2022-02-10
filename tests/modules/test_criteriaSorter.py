@@ -122,6 +122,7 @@ def test_action_cancel(monkeypatch, list_of_cancels, result_expected, capsys):
 
     cldl(cancel_file)
 
+
 @pytest.mark.parametrize("verbose", [0, 1, 2, 3, 4])
 def test_action_list(verbose, capsys):
     args = ["-"+"v"*verbose]+["list"] if verbose else ["list"]
@@ -148,6 +149,7 @@ def test_action_list_error(args, error,  caplog, monkeypatch):
             criteriaSorter.action_list(args)
             assert error in caplog.text
     cldl(no_conf)
+
 
 def test_load_config():
     good_conf = tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False)
